@@ -11,6 +11,47 @@ Problem :: struct {
 }
 
 problems :: [?]Problem {
+    // Day 4
+    {
+        part1 = proc(input: string) -> (result: int) {
+            w, h: int
+            for c, i in input {
+                if c == '\n' {
+                    w = i
+                    h = len(input) / w
+                    break
+                }
+            }
+            for y in 0..<h {
+                for x in 0..<w-1 {
+                    elem := input[y*(w+1) + x]
+                    indices := [8]int {
+                        y*(w + 1) + x + 1,
+                        y*(w + 1) + x - 1,
+                        // y*(w + 1) + x + 2,
+                        // y*(w + 1) + x - 2,
+                        // y*(w + 1) + x + 3,
+                        // y*(w + 1) + x - 3,
+                        // y*(w + 1) + x + 4,
+                        // y*(w + 1) + x - 4,
+                        (y-1)*(w + 1) + x,
+                        (y+1)*(w + 1) + x,
+                        (y-1)*(w + 1) + x + 1,
+                        (y-1)*(w + 1) + x - 1,
+                        (y+1)*(w + 1) + x + 1,
+                        (y+1)*(w + 1) + x - 1,
+                    }
+                    adjaciencies: int
+                    for index in indices do if index < len(input) && index >= 0 && input[index] == '@' do adjaciencies += 1
+                    if adjaciencies < 4 do result += 1
+                    fmt.print(adjaciencies < 4 ? 'X' : rune(elem))
+                }
+                fmt.println()
+            }
+            // fmt.println(w, h)
+            return
+        }
+    },
     // Day 3
     {
         part1 = proc(input: string) -> (result: int) {
@@ -37,6 +78,39 @@ problems :: [?]Problem {
                 result += max_joltage*10+second_joltage
             }
             return 
+        },
+        part2 = proc(input: string) -> (result: int) {
+            find_max_joltage :: proc(bank: string, joltages: ^[dynamic]int) {
+                if len(joltages) == 12 do return
+                max_joltage, index: int
+                slots_to_fill := 11 - len(joltages)
+                space := len(bank) - slots_to_fill
+                if len(joltages) == 11 do space = len(bank)
+                for i in 0..<space{
+                    joltage := int(bank[i]) - 48
+                    if joltage > max_joltage {
+                        max_joltage = joltage
+                        index = i
+                    }
+                }
+                append(joltages, max_joltage)
+                remainder := bank[index+1:]
+                find_max_joltage(remainder, joltages)
+                return
+            }
+            input_ptr := input
+            for bank in strings.split_lines_iterator(&input_ptr) {
+                joltages: [dynamic]int
+                find_max_joltage(bank, &joltages)
+                joltage_builder: strings.Builder
+                strings.builder_init(&joltage_builder)
+                for joltage in joltages do strings.write_int(&joltage_builder, joltage)
+                joltage_str := strings.to_string(joltage_builder)
+                assert(len(joltage_str) == 12)
+                joltage, ok := strconv.parse_int(joltage_str); assert(ok)
+                result += joltage
+            }
+            return
         }   
     },
     // Day 2
@@ -89,7 +163,6 @@ problems :: [?]Problem {
             return
         }
     },
-
     // Day 1
     {
         part1 = proc(input: string) -> (result: int) {
