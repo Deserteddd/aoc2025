@@ -4,6 +4,7 @@ import "core:strings"
 import "core:fmt"
 import "core:strconv"
 import "core:math"
+import "core:slice"
 
 Problem :: struct {
     part1: proc(s: string) -> int,
@@ -11,6 +12,63 @@ Problem :: struct {
 }
 
 problems :: [?]Problem {
+    // Day 5
+    {
+        part1 = proc(input: string) -> (result: int) {
+            split := strings.split(input, "\r\n\r\n")
+            id_in_range :: proc(id: int, ranges: string) -> bool {
+                ranges_ptr := ranges
+                for range in strings.split_lines_iterator(&ranges_ptr) {
+                    dash := strings.index_rune(range, '-')
+                    lower, lower_ok := strconv.parse_int(range[0:dash]); assert(lower_ok) 
+                    upper, upper_ok := strconv.parse_int(range[dash+1:]); assert(upper_ok)
+                    if id >= lower && id <= upper {
+                        return true
+                    }
+
+                }
+                return false
+            }
+            id_ptr := split[1]
+            for i in strings.split_lines_iterator(&id_ptr) {
+                id, ok := strconv.parse_int(i); assert(ok)
+                if id_in_range(id, split[0]) do result += 1
+            }
+
+            return
+        },
+        part2 = proc(input: string) -> (result: int) {
+            input_ptr := input
+            ranges: [dynamic][2]int
+            for range in strings.split_lines_iterator(&input_ptr) {
+                if range == "" do break
+                dash := strings.index_rune(range, '-')
+                lower, lower_ok := strconv.parse_int(range[0:dash]); assert(lower_ok) 
+                upper, upper_ok := strconv.parse_int(range[dash+1:]); assert(upper_ok)
+                append(&ranges, [2]int{lower, upper})
+            }
+            merge_ranges :: proc(ranges: ^[dynamic][2]int) {
+                slice.sort_by(ranges[:], proc(i, j: [2]int) -> bool {
+                    return i.x < j.x
+                })
+                for i in 0..<len(ranges)-1 {
+                    if ranges[i].y >= ranges[i+1].x-1 {
+                        ranges[i].y = ranges[i+1].x
+                        if ranges[i].y < ranges[i+1].y do ranges[i].y = ranges[i+1].y
+                        ordered_remove(ranges, i+1)
+                        merge_ranges(ranges)
+                        break
+                    }
+                }
+            }
+            merge_ranges(&ranges)
+            for i, index in ranges {
+                fmt.println(index,"/",len(ranges))
+                for j in i.x..=i.y do result += 1
+            }
+            return result
+        }
+    },
     // Day 4
     {
         part1 = proc(input: string) -> (result: int) {
@@ -25,31 +83,83 @@ problems :: [?]Problem {
             for y in 0..<h {
                 for x in 0..<w-1 {
                     elem := input[y*(w+1) + x]
-                    indices := [8]int {
-                        y*(w + 1) + x + 1,
-                        y*(w + 1) + x - 1,
-                        // y*(w + 1) + x + 2,
-                        // y*(w + 1) + x - 2,
-                        // y*(w + 1) + x + 3,
-                        // y*(w + 1) + x - 3,
-                        // y*(w + 1) + x + 4,
-                        // y*(w + 1) + x - 4,
-                        (y-1)*(w + 1) + x,
-                        (y+1)*(w + 1) + x,
-                        (y-1)*(w + 1) + x + 1,
-                        (y-1)*(w + 1) + x - 1,
-                        (y+1)*(w + 1) + x + 1,
-                        (y+1)*(w + 1) + x - 1,
+                    adjacent_indices := [8]int {
+                        y*(w+1) + x + 1,
+                        y*(w+1) + x - 1,
+                        (y-1)*(w+1) + x,
+                        (y+1)*(w+1) + x,
+                        (y+1)*(w+1) + x+1,
+                        (y+1)*(w+1) + x-1,
+                        (y-1)*(w+1) + x+1,
+                        (y-1)*(w+1) + x-1
                     }
-                    adjaciencies: int
-                    for index in indices do if index < len(input) && index >= 0 && input[index] == '@' do adjaciencies += 1
-                    if adjaciencies < 4 do result += 1
-                    fmt.print(adjaciencies < 4 ? 'X' : rune(elem))
+                    adjancies: int
+                    if elem == '@' {
+                        for ai in adjacent_indices {
+                            if ai >= 0 && ai < len(input) {
+                                if input[ai] == '@' do adjancies += 1
+                            }
+                        }
+                        if adjancies < 4 do result += 1
+                    }
                 }
-                fmt.println()
             }
-            // fmt.println(w, h)
             return
+        },
+        part2 = proc(input: string) -> (result: int) {
+            part1_recursive :: proc(input: string) -> int {
+                w, h: int
+                for c, i in input {
+                    if c == '\n' {
+                        w = i
+                        h = len(input) / w
+                        break
+                    }
+                }
+                input_builder_buf := make([]byte, len(input))
+                index: int
+                removed: int
+                for y in 0..<h {
+                    for x in 0..<w-1 {
+                        if input[y*(w+1) + x] == '@' {
+                            adjacent_indices := [8]int {
+                                y*(w+1) + x + 1,
+                                y*(w+1) + x - 1,
+                                (y-1)*(w+1) + x,
+                                (y+1)*(w+1) + x,
+                                (y+1)*(w+1) + x+1,
+                                (y+1)*(w+1) + x-1,
+                                (y-1)*(w+1) + x+1,
+                                (y-1)*(w+1) + x-1
+                            }
+                            adjancies: int
+                            for ai in adjacent_indices {
+                                if ai >= 0 && ai < len(input) {
+                                    if input[ai] == '@' do adjancies += 1
+                                }
+                            }
+                            if adjancies < 4 {
+                                input_builder_buf[index] = '.'
+                                removed += 1
+                            } else {
+                                input_builder_buf[index] = '@'
+                            }
+                        } else {
+                            input_builder_buf[index] = '.'
+                        } 
+                        index += 1
+                    }
+                    if index < len(input) {
+                        input_builder_buf[index] = '\r'
+                        input_builder_buf[index + 1] = '\n'
+                        index += 2
+                    }
+                }
+                updated_grid := string(input_builder_buf)
+                if removed > 0 do return removed + part1_recursive(updated_grid)
+                else do return removed
+            }
+            return part1_recursive(input)
         }
     },
     // Day 3
@@ -135,7 +245,7 @@ problems :: [?]Problem {
 
             input_ptr := input
             for range in strings.split_iterator(&input_ptr, ",") {
-                sep := strings.index(range, "-")
+                sep := strings.index_rune(range, '-')
                 lower, lower_ok := strconv.parse_int(range[0:sep]); assert(lower_ok)
                 upper, upper_ok := strconv.parse_int(range[sep+1:]); assert(upper_ok)
                 for id in lower..=upper do result += int(!valid_id(id))*id
